@@ -1,9 +1,12 @@
-/*
- * LAB1.c
- *
- * Created: 23/01/2025 19:45:53
- * Author : alane
- */ 
+//******************************************************************************
+// Universidad Del Valle De Guatemala
+// IE2023: Electrónica Digital 2
+// Autor: Alan Flores
+// Carné: 22456
+// Proyecto: Laboratorio 1
+// Hardware: Atmega238p
+// Creado: 23/01/2025
+//******************************************************************************
 #define F_CPU 16000000
 
 #include <avr/io.h>
@@ -12,17 +15,33 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include "SEGLIB/SEGLIB.h"
+
+//******************************************************************************
 void setup(void);
 void startRace(void);
 
+void checkWinner(void);
+void updateLeds(uint8_t player, volatile uint8_t *port, uint8_t shift);
+//******************************************************************************
 int count = 0;
 
+int player1 = 0;
+int player2 = 0;
+int result;
+int raceStarted = 0;
+//******************************************************************************
 void startRace() {
 	for (int i = 5; i >= 0; i--) {
 		displayref(i);
 		_delay_ms(1000);
 	}
 	PORTD = 0b11111111; // Apagar display después de conteo
+	raceStarted = 1; // Iniciar la carrera
+	player1 = 0;
+	player2 = 0;
+	result = 0;
+	PORTB &= 0xE1; // Limpiar los bits PB1-PB4
+	PORTC &= 0xF0; // Limpiar los bits PC0-PC3
 }
 
 void setup(void) {
@@ -53,9 +72,36 @@ int main(void)
 {
 	setup();
      while (1) {
-	     PORTD = 0b11111111;
+	     checkWinner();
      }
     
+}
+
+void checkWinner() {
+	if (result != 0) {
+		_delay_ms(10);
+		PORTD = 0x0F;     // Apagar el display después de mostrar el ganador
+	}
+
+	switch (result) {
+		case 1:
+		displayref(1);
+		count = 0;
+		break;
+		
+		case 2:
+		displayref(2);
+		count = 0;
+		break;
+	}
+}
+
+void updateLeds(uint8_t player, volatile uint8_t *port, uint8_t shift) {
+	uint8_t mask = 0x0F << shift;
+	*port &= ~mask; // Apagar los LEDs correspondientes
+	if (player > 0 && player <= 4) {
+		*port |= (1 << (player - 1 + shift)); // Encender el LED específico
+	}
 }
 
 ISR(PCINT1_vect) {
@@ -68,4 +114,28 @@ ISR(PCINT1_vect) {
 		}
 	}
 	
+	 if ((PINC & (1<<PINC5)) == 0 && raceStarted) {
+		 if (result != 2) { // Evitar incrementar si player2 ha ganado
+			 player1++;
+			 if (player1 > 4) {
+				 player1 = 4;   // Limitar el valor máximo a 4
+				 result = 1;
+			 }
+			 updateLeds(player1, &PORTB, 1); // Actualizar PB1-PB4 con el valor de player1
+		 }
+	 }
+}
+
+ISR(PCINT0_vect) {
+	if ((PINB & (1<<PINB0)) == 0 && raceStarted) {
+		_delay_ms(5);
+		if (result != 1) { // Evitar incrementar si player1 ha ganado
+			player2++;
+			if (player2 > 4) {
+				player2 = 4;   // Limitar el valor máximo a 4
+				result = 2;
+			}
+			updateLeds(player2, &PORTC, 0); // Actualizar PC0-PC3 con el valor de player2
+		}
+	}
 }
