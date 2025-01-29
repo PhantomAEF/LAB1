@@ -123,12 +123,13 @@ ISR(PCINT1_vect) {
 			 }
 			 updateLeds(player1, &PORTB, 1); // Actualizar PB1-PB4 con el valor de player1
 		 }
-	 }
+	 } 
+	 
+	 
 }
 
 ISR(PCINT0_vect) {
 	if ((PINB & (1<<PINB0)) == 0 && raceStarted) {
-		_delay_ms(5);
 		if (result != 1) { // Evitar incrementar si player1 ha ganado
 			player2++;
 			if (player2 > 4) {
